@@ -7,7 +7,8 @@ on:
 permissions:
   contents: write
 jobs:
-  buildDeploy:
+  build:
+    name: Build
     concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
     strategy:
@@ -17,15 +18,35 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
 
-      - name: Build and push
-        uses: alexthemaster/action-build-typescript@v1.3.1
-        with:
-          pushToBranch: true 
-          branch: 'dist' 
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-
-
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+
+      
+      - name: Install dependencies
+        uses: bahmutov/npm-install@v1
+
+      - name: Upload production-ready build files
+        uses: actions/upload-artifact@v2
+        with:
+          name: production-files
+          path: ./dist
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: production-files
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
